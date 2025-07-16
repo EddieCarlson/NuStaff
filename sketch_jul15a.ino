@@ -2,13 +2,13 @@
 #include <FastLED.h>
 
 #define NUM_LEDS 75
-#define PIN_0 2
-#define PIN_1 3
-#define PIN_2 4
-#define PIN_3 5
+#define PIN_0 14
+#define PIN_1 10
+#define PIN_2 19
+#define PIN_3 15
 #define PIN_4 6
-#define PIN_5 8
-#define PIN_6 7
+#define PIN_5 7
+#define PIN_6 8
 #define PIN_7 9
 #define BUTTON_PIN 12
 
@@ -21,6 +21,9 @@ CRGB strip5[NUM_LEDS];
 CRGB strip6[NUM_LEDS];
 CRGB strip7[NUM_LEDS];
 
+const int RAINBOW_HUES = 2560;
+CRGB rainbow[RAINBOW_HUES];
+
 void setup() {
   FastLED.addLeds<WS2812B, PIN_0, RGB>(strip0, NUM_LEDS);
   FastLED.addLeds<WS2812B, PIN_1, RGB>(strip1, NUM_LEDS);
@@ -30,6 +33,98 @@ void setup() {
   FastLED.addLeds<WS2812B, PIN_5, RGB>(strip5, NUM_LEDS);
   FastLED.addLeds<WS2812B, PIN_6, RGB>(strip6, NUM_LEDS);
   FastLED.addLeds<WS2812B, PIN_7, RGB>(strip7, NUM_LEDS);
+
+  fill_rainbow(rainbow, RAINBOW_HUES, 0, 1);
+}
+
+int curHue = 0;
+
+void advanceHue() {
+  curHue = (curHue + 1) % RAINBOW_HUES;
+}
+
+double cSpeed = 20;
+double rSpeed = 3;
+bool cSpeedUp = true;
+bool rSpeedUp = true;
+int cSpeedSameDirTimes = 0;
+int rSpeedSameDirTimes = 0;
+double cSpeedIncrement = 0.01;
+double rSpeedIncrement = 0.002;
+
+void setSpeeds() {
+  double cSpeedSameDirChance = pow(0.995, cSpeedSameDirTimes);
+  if (rand01() > cSpeedSameDirChance) {
+    cSpeedUp = !cSpeedUp;
+  }
+  double rSpeedSameDirChance = pow(0.995, rSpeedSameDirTimes);
+  if (rand01() > rSpeedSameDirChance) {
+    rSpeedUp = !rSpeedUp;
+  }
+  if (cSpeedUp) {
+    cSpeed += cSpeedIncrement;
+  } else {
+    cSpeed -= cSpeedIncrement;
+  }
+  if (rSpeedUp) {
+    rSpeed += rSpeedIncrement;
+  } else {
+    rSpeed -= rSpeedIncrement;
+  }
+}
+
+double cStartFactor = 17.0;
+double rStartFactor = 1.2;
+double cFactor = cStartFactor;
+double rFactor = rStartFactor;
+int speedUpCTimesMax = 800;
+int curCTimes = (speedUpCTimesMax * 0.8);
+bool cUp = true;
+int speedUpRTimesMax = 519;
+int curRTimes = 0;
+bool rUp = true;
+
+
+void setSpeeds2() {
+  if (curCTimes > speedUpCTimesMax) {
+    cUp = !cUp;
+    curCTimes = 0;
+  } else {
+    curCTimes++;
+  }
+  if (curRTimes > speedUpRTimesMax) {
+    rUp = !rUp;
+    curRTimes = 0;
+  } else {
+    curRTimes++;
+  }
+  double baseCMod = (cStartFactor / ((double) speedUpCTimesMax)) * 2.0;
+  double cMod = baseCMod + ((1.0 - rand01()) * baseCMod * 0.04);
+  if (cUp) {
+    cFactor += cMod;
+  } else {
+    cFactor -= cMod;
+  }
+  double baseRMod = (rStartFactor / ((double) speedUpRTimesMax)) * 0.65;
+  double rMod = baseRMod + ((1.0 - rand01()) * baseRMod * 0.04);
+  if (rUp) {
+    rFactor += rMod;
+  } else {
+    rFactor -= rMod;
+  }
+}
+
+void advanceRainbow() {
+  setSpeeds2();
+  for (int c = 0; c < 8; c++) {
+    for (int r = 0; r < NUM_LEDS; r++) {
+      int colorIndex = ((int) (((double) curHue) + (cFactor * c) + (rFactor * r)) + RAINBOW_HUES) % RAINBOW_HUES;
+      // int colorIndex = max(min(round(fmod(((double) curHue) + (cSpeed * c) + (rSpeed * r), RAINBOW_HUES)), RAINBOW_HUES), 0);
+      // int colorIndex = (curHue + (r) + (c * 6)) % RAINBOW_HUES; 
+      setPixel(c, r, rainbow[colorIndex]);
+    }
+  }
+  advanceHue();
 }
 
 CRGB* strip(int index) { 
@@ -79,6 +174,10 @@ int numUps = 1;
 int prevLaterals = 0;
 double walkFade = 0.91;
 
+double rand01() {
+  return (double) rand() / (double) RAND_MAX;
+}
+
 // -1 = left, 0 = up, 1 = right
 void setNextWalkPixel(CRGB color) {
   fadePixel(curWalkPixel[0], curWalkPixel[1], 0.5);
@@ -106,7 +205,17 @@ void setNextWalkPixel(CRGB color) {
 }
  
 void loop() {
-  setNextWalkPixel(CRGB::Cyan);
+  // setNextWalkPixel(CRGB::Cyan);
+  advanceRainbow();
+  // setPixel(0, 10, CRGB::Blue);
+  // setPixel(1, 10, CRGB::Red);
+  // setPixel(2, 10, CRGB::Green);
+  // setPixel(3, 10, CRGB::Purple);
+  // setPixel(4, 10, CRGB::Blue);
+  // setPixel(5, 10, CRGB::Red);
+  // setPixel(6, 10, CRGB::Green);
+  // setPixel(7, 10, CRGB::Purple);
+  fadeAll(0.18);
+  delay(80);
   FastLED.show();
-  delay(10);
 }
